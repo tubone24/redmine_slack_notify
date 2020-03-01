@@ -58,6 +58,32 @@ DAILY_HOUR=9          # Daily notify hours
 DAILY_MINUTES=10      # Daily notify minutes (this examples sets 9:10)
 ```
 
+#### [Note] How to get the URL for getting issue.csv
+
+- First, Open Chrome developer tool(Push F12)
+- Second, Show your project and **disabled all filter** and also **sort updated descending order**
+
+![1](docs/images/1.png)
+
+- Click exporting other format CSV
+
+![2](docs/images/2.png)
+
+- Choose the berow and click export
+  - **selected columns**
+  - check **description**, **latest note**
+  - Encoding **UTF-8**
+  
+![3](docs/images/3.png)
+
+- Watch developer tool **network tab** and check downloading issues.csv
+
+![4](docs/images/4.png) 
+
+- select **Copy link address**, this is your issues.csv download URL!
+
+![5](docs/images/5.png)
+
 ## Usage
 
 ```
