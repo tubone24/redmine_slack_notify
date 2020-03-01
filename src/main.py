@@ -74,6 +74,19 @@ def wrap_long_text(text):
 
 
 @retry(stop_max_attempt_number=3, wait_incrementing_start=1000, wait_incrementing_increment=1000)
+def call_slack_api(webhook, payload):
+    """Call Slack incoming Webhook
+
+    Args:
+        webhook(str): WEBHOOK URL
+        payload(dict): Payload dictionary
+
+    Returns:
+
+    """
+    requests.post(webhook, json.dumps(payload), timeout=(3.0, 7.5))
+
+
 def notify_slack_daily(rows, now):
     text_prefix = "デイリーRedmine更新チケットまとめ\n\n"
     text_suffix = "\n\n\n`更新時間:{now_time}`".format(now_time=now.strftime("%Y-%m-%dT%H:%M:%S.%f%z"))
@@ -91,10 +104,9 @@ def notify_slack_daily(rows, now):
                                                          content=content_text)
         text_list.append(text)
     payload = {"text": text_prefix + "\n".join(text_list) + text_suffix}
-    requests.post(WEB_HOOK_URL_DAILY, json.dumps(payload), timeout=(3.0, 7.5))
+    call_slack_api(WEB_HOOK_URL_DAILY, payload)
 
 
-@retry(stop_max_attempt_number=3, wait_incrementing_start=1000, wait_incrementing_increment=1000)
 def notify_slack_each(rows):
     bleak_str = "=" * 60
     text_prefix = "REDMINEの更新を検知\n\n"
@@ -108,16 +120,16 @@ def notify_slack_each(rows):
                                                      updated=rows[0]["更新日"],
                                                      content=content_text)
     payload = {"text": text_prefix + text}
-    requests.post(WEB_HOOK_URL_EACH, json.dumps(payload), timeout=(3.0, 7.5))
+    call_slack_api(WEB_HOOK_URL_EACH, payload)
 
 
 def notify_slack_error(error):
     try:
         print(error)
         payload = {"text": "*ERROR OCCURRED!!*" + "```" + str(error) + "```"}
-        requests.post(WEB_HOOK_URL_EACH, json.dumps(payload), timeout=(3.0, 7.5))
+        call_slack_api(WEB_HOOK_URL_EACH, payload)
     except Exception:
-        pass
+        print("unhandled ERROR")
 
 
 def before_3days_msg(rows, now):
@@ -193,6 +205,7 @@ def update_sincedb(updated):
 
 
 def check_daily_time(now):
+    print(DAILY_HOUR, DAILY_MINUTES)
     if now.hour == DAILY_HOUR and DAILY_MINUTES < now.minute <= DAILY_MINUTES + LOOP_INTERVAL:
         return True
     return False
