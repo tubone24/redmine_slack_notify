@@ -36,6 +36,7 @@ SINCEDB_PATH = join(dirname(__file__), "../since_db.txt")
 ISSUE_CSV_PATH = join(dirname(__file__), "../issues.csv")
 CSV_URL = os.environ.get("CSV_URL")
 ATOM_URL = os.environ.get("ATOM_URL")
+ATOM_KEY = os.environ.get("ATOM_KEY")
 WEB_HOOK_URL_DAILY = os.environ.get("WEB_HOOK_URL_DAILY")
 WEB_HOOK_URL_EACH = os.environ.get("WEB_HOOK_URL_EACH")
 LOOP_INTERVAL = int(os.environ.get("LOOP_INTERVAL"))
@@ -71,8 +72,9 @@ def create_summary_text(row):
 
 @retry(stop_max_attempt_number=3, wait_incrementing_start=1000, wait_incrementing_increment=1000)
 def get_single_issue_by_atom(issue_id):
-    url = ATOM_URL + "issues" + issue_id + ".atom"
+    url = ATOM_URL + "issues" + "/" + issue_id + ".atom" + "?key=" + ATOM_KEY
     response = requests.get(url, timeout=(3.0, 7.5))
+    print(url)
     feed = atoma.parse_atom_bytes(response.content)
     if feed.entries is None or len(feed.entries) == 0:
         return False
@@ -234,7 +236,6 @@ def update_sincedb(updated):
 
 
 def check_daily_time(now):
-    print(DAILY_HOUR, DAILY_MINUTES)
     if now.hour == DAILY_HOUR and DAILY_MINUTES < now.minute <= DAILY_MINUTES + LOOP_INTERVAL:
         return True
     return False
@@ -271,4 +272,4 @@ def loop_main():
 
 
 if __name__ == "__main__":
-    get_single_issue_by_atom("12")
+    loop_main()
