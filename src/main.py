@@ -16,6 +16,7 @@ Todo:
 
 import json
 import csv
+import re
 import textwrap
 from datetime import datetime, timedelta, timezone
 from time import sleep
@@ -23,6 +24,7 @@ import os
 from os.path import join, dirname
 from dotenv import load_dotenv
 import requests
+import atoma
 from retrying import retry
 
 dotenv_path = join(dirname(__file__), "../.env")
@@ -32,7 +34,8 @@ JST = timezone(timedelta(hours=+9))
 
 SINCEDB_PATH = join(dirname(__file__), "../since_db.txt")
 ISSUE_CSV_PATH = join(dirname(__file__), "../issues.csv")
-URL = os.environ.get("URL")
+CSV_URL = os.environ.get("CSV_URL")
+ATOM_URL = os.environ.get("ATOM_URL")
 WEB_HOOK_URL_DAILY = os.environ.get("WEB_HOOK_URL_DAILY")
 WEB_HOOK_URL_EACH = os.environ.get("WEB_HOOK_URL_EACH")
 LOOP_INTERVAL = int(os.environ.get("LOOP_INTERVAL"))
@@ -52,11 +55,37 @@ def create_summary_text(row):
         str: formatted summary text
     """
     content_text = ""
-    if row["最新の注記"] != "":
-        content_text = "【更新】" + row["最新の注記"]
-    elif row["説明"] != "":
-        content_text = "【新規】" + row["説明"]
+    if "最新の注記" not in row:
+        atom_content = get_single_issue_by_atom(row["#"])
+        if atom_content:
+            return atom_content
+        elif row["説明"] != "":
+            content_text = "【新規】" + row["説明"]
+    else:
+        if row["最新の注記"] != "":
+            content_text = "【更新】" + row["最新の注記"]
+        elif row["説明"] != "":
+            content_text = "【新規】" + row["説明"]
     return wrap_long_text(sanitize_contents_text(content_text))
+
+
+@retry(stop_max_attempt_number=3, wait_incrementing_start=1000, wait_incrementing_increment=1000)
+def get_single_issue_by_atom(issue_id):
+    url = ATOM_URL + "issues" + issue_id + ".atom"
+    response = requests.get(url, timeout=(3.0, 7.5))
+    feed = atoma.parse_atom_bytes(response.content)
+    if feed.entries is None or len(feed.entries) == 0:
+        return False
+    latest_entry = feed.entries[-1]
+    author = latest_entry.authors[0].name
+    content = sanitize_html_tag(latest_entry.content.value)
+    return wrap_long_text("【更新】【{author}】 {content}".format(author=author, content=content))
+
+
+def sanitize_html_tag(content):
+    p = re.compile(r"<[^>]*?>")
+    text = p.sub("", content)
+    return sanitize_contents_text(text)
 
 
 def wrap_long_text(text):
@@ -171,7 +200,7 @@ def sanitize_contents_text(text):
 
 @retry(stop_max_attempt_number=3, wait_incrementing_start=1000, wait_incrementing_increment=1000)
 def download_issues_csv():
-    response = requests.get(URL, timeout=(3.0, 7.5))
+    response = requests.get(CSV_URL, timeout=(3.0, 7.5))
     with open(ISSUE_CSV_PATH, 'wb') as saveFile:
         saveFile.write(response.content)
 
@@ -242,4 +271,4 @@ def loop_main():
 
 
 if __name__ == "__main__":
-    loop_main()
+    get_single_issue_by_atom("12")
